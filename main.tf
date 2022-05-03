@@ -1,7 +1,7 @@
 terraform {
   backend "s3" {
     bucket = "equipments-terraform-state"
-    key    = "iac/terraform.tfstate"
+    key    = "equipments/backend"
     region = "eu-north-1"
   }
 }
@@ -10,6 +10,11 @@ terraform {
 provider "aws" {
   profile = var.profile
   region  = "eu-north-1"
+}
+
+resource "aws_s3_bucket" "terraform_state_bucket" {
+  bucket = "equipments-terraform-state"
+  acl    = "private"
 }
 
 resource "aws_cloudwatch_log_group" "equipments_log_group" {
