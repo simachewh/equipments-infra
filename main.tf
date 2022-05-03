@@ -12,38 +12,57 @@ provider "aws" {
   region  = "eu-north-1"
 }
 
-# resource "aws_ecs_service" "equipments_service" {
-#   name                               = "equipments-service"
-#   cluster                            = "equipmet-cluster"
-#   task_definition                    = "equipments-task"
-#   desired_count                      = 1
-#   deployment_minimum_healthy_percent = "100"
-#   deployment_maximum_percent         = "200"
-# }
+resource "aws_cloudwatch_log_group" "equipments_log_group" {
+  name = "equipments-log-group"
+}
 
-module "ecs-codepipeline" {
-  source  = "cloudposse/ecs-codepipeline/aws"
-  version = "0.28.5"
-  # insert the 21 required variables here
-  branch              = "master"
-  delimiter           = "-"
-  ecs_cluster_name    = var.ecs_cluster_name
-  enabled             = true
-  environment         = terraform.workspace
-  id_length_limit     = 12
-  image_repo_name     = "codepipeline-ecs-image-${terraform.workspace}"
-  label_key_case      = "upper"
-  label_order         = ["environment", "name"]
-  label_value_case    = "upper"
-  name                = var.app_name
-  namespace           = var.namespace
-  regex_replace_chars = "/[^a-zA-Z0-9-]/"
-  region              = var.region
-  repo_name           = "codepipeline-ecs-image-${terraform.workspace}"
-  repo_owner          = var.repo_owner
-  # secondary_artifact_bucket_id = 
-  # secondary_artifact_identifier =
-  service_name = "${var.app_name}-${terraform.workspace}"
-  stage        = terraform.workspace
-  tenant       = var.tenant
+resource "aws_ecs_cluster" "equipments_cluster" {
+  name = var.ecs_cluster_name
+
+  configuration {
+    execute_command_configuration {
+      logging = "OVERRIDE"
+      log_configuration {
+        cloud_watch_encryption_enabled = false
+        cloud_watch_log_group_name     = aws_cloudwatch_log_group.equipments_log_group.name
+      }
+    }
+  }
+}
+
+resource "aws_ecs_task_definition" "equipments_backend" {
+  family = "equipments_backend_tasks"
+  container_definitions = jsonencode([
+    {
+      name      = var.app_name,
+      image     = var.docker_image,
+      cpu       = 256,
+      memory    = 512
+      essential = true
+      portMappings = [
+        {
+          containerPort = 3100
+          hostPort      = 3100
+        }
+      ]
+    }
+  ])
+
+  volume {
+    name      = "service-storage"
+    host_path = "/ecs/service-storage"
+  }
+
+  placement_constraints {
+    type       = "memberOf"
+    expression = "attribute:ecs.availability-zone in [us-west-2a, us-west-2b]"
+  }
+}
+resource "aws_ecs_service" "equipments_backend_service" {
+  name                               = "equipments-service"
+  cluster                            = aws_ecs_cluster.equipments_cluster.id
+  task_definition                    = aws_ecs_task_definition.equipments_backend.arn
+  desired_count                      = 1
+  deployment_minimum_healthy_percent = "100"
+  deployment_maximum_percent         = "200"
 }

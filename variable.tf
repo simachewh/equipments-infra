@@ -36,3 +36,8 @@ variable "tenant" {
   type        = string
   description = "The customer identifier that indicates who this instance is for"
 }
+
+variable "docker_image" {
+  type        = string
+  description = "The docker image to use"
+}
