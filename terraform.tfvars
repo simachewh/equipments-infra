@@ -1,0 +1,6 @@
+ecs_cluster_name = "equipments_culster"
+app_name = "equipments_backend"
+namespace = "kone"
+region = "eu-north-1"
+repo_name = "equipments"
+repo_owner = "simachewh"
